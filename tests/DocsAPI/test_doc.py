@@ -169,7 +169,6 @@ def test_08_post_create_doc_missing_file(url):
 
     r = requests.post(f"{url}/create_doc/", data=data)
 
-tests/DocsAPI/test_doc.py
     assert r.status_code in (400, 422)
 
 def test_09_post_create_doc_missing_filename(url):
