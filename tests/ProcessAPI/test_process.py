@@ -1,43 +1,38 @@
 import requests
-from unittest.mock import patch, Mock
+import pytest
+from unittest.mock import patch
+from mock_process_api import MockProcessAPI
 
 BASE_PROCESS_ENDPOINT = "/post"
 
-# ProcessDoc (GET /post/:iddoc)
+# Fixture: mock de Process API
 
-@patch("requests.get")
-def test_process_doc_success(mock_get):
-    mock_get.return_value = Mock(
-        status_code=200,
-        json=lambda: {"result": True}
-    )
+@pytest.fixture(autouse=True)
+def mock_process_api(use_mock):
+    if use_mock:
+        mock_api = MockProcessAPI()
+        with patch("requests.get", side_effect=mock_api.get):
+            yield
+    else:
+        yield
 
-    response = requests.get(f"{BASE_PROCESS_ENDPOINT}/123")
+# TESTS ProcessDoc
+
+def test_process_doc_success(url):
+    response = requests.get(f"{url}{BASE_PROCESS_ENDPOINT}/123")
 
     assert response.status_code == 200
     assert response.json()["result"] is True
 
 
-@patch("requests.get")
-def test_process_doc_error(mock_get):
-    mock_get.return_value = Mock(
-        status_code=500,
-        json=lambda: {"result": "Error"}
-    )
+def test_process_doc_invalid_id(url):
+    response = requests.get(f"{url}{BASE_PROCESS_ENDPOINT}/abc")
 
-    response = requests.get(f"{BASE_PROCESS_ENDPOINT}/123")
-
-    assert response.status_code == 500
+    assert response.status_code == 400
     assert response.json()["result"] == "Error"
 
 
-@patch("requests.get")
-def test_process_doc_invalid_id(mock_get):
-    mock_get.return_value = Mock(
-        status_code=400,
-        json=lambda: {"result": "Error"}
-    )
+def test_process_doc_not_found(url):
+    response = requests.get(f"{url}/invalid_endpoint/123")
 
-    response = requests.get(f"{BASE_PROCESS_ENDPOINT}/abc")
-
-    assert response.status_code == 400
+    assert response.status_code == 404
