@@ -1,45 +1,47 @@
-import unittest
-from unittest.mock import patch, Mock
 import requests
+import pytest
+from unittest.mock import patch
+from mock_chat_api import MockChatAPI
 
-class TestChatEndpoints(unittest.TestCase):
+BASE_CHAT_ENDPOINT = "/chat"
 
-    @patch('requests.post')
-    def test_post_message(self, mock_post_data):
-        request = {
-            "threadId": "t-123",
-            "runId": "r-456",
-            "messages": [
-                {"role": "user", "content": "Hola"}
-            ],
-            "tools": [],
-            "context": [],
-            "forwardedProps": {},
-            "state": {}
-        }
+# Fixture de mock para RAG / Chat API
 
-        mock_post_data = Mock()
-        mock_post_data.status_code = 200
+@pytest.fixture(autouse=True)
+def mock_chat_api(use_mock):
+    """
+    Aplica el mock de Chat API para todos los tests de este módulo.
+    """
+    if use_mock:
+        mock_api = MockChatAPI()
+        with patch("requests.post", side_effect=mock_api.post):
+            yield
+    else:
+        yield
 
-        body = {
-                    "data": {"type": "RUN_STARTED", "threadId": "t-123", "runId": "r-456"},
+# TESTS Chat (POST /chat/:session)
 
-                    "data": {
-                        "type": "TEXT_MESSAGE_START", "messageId": "m-1", "role": "assistant"},
+def test_post_message_success(url):
+    request_body = {
+        "threadId": "t-123",
+        "runId": "r-456",
+        "messages": [
+            {"role": "user", "content": "Hola"}
+        ],
+        "tools": [],
+        "context": [],
+        "forwardedProps": {},
+        "state": {}
+    }
 
-                    "data": {"type": "TEXT_MESSAGE_CONTENT", "messageId": "m-1", "delta": "Hola"},
+    response = requests.post(
+        f"{url}{BASE_CHAT_ENDPOINT}/session",
+        json=request_body,
+        stream=True
+    )
 
-                    "data": {"type": "TEXT_MESSAGE_END", "messageId": "m-1"},
+    body = response.json()
 
-                    "data": {"type": "RUN_FINISHED", "threadId": "t-123", "runId": "r-456"},
-        }
-
-        mock_post_data.return_value = body
-        # llamada al endpoint (mockeada, no nos va a importar)
-        response = requests.post("http://fake/chat/session", json=request, stream=True)
-
-        print(response.status_code)
-
-        self.assertEqual(mock_post_data.status_code,200)
-
-        self.assertEqual(mock_post_data.return_value["data"]["type"], "RUN_FINISHED")
+    assert response.status_code == 200
+    assert "data" in body
+    assert body["data"]["type"] == "RUN_FINISHED"
