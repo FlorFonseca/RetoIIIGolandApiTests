@@ -7,7 +7,7 @@ BASE_ENDPOINT = "/get_docs"
 
 # TESTS Get all docs
 
-def test_get_all_docs_success(url):
+def test_01_get_all_docs_success(url):
     response = requests.get(f"{url}/get_docs?limit=10&offset=0")
     body = response.json()
 
@@ -17,8 +17,7 @@ def test_get_all_docs_success(url):
     assert isinstance(body["results"], list)
     assert isinstance(body["total"], int)
 
-
-def test_get_all_docs_empty(url):
+def test_02_get_all_docs_empty(url):
     # Simula que no hay documentos (estado inicial vacío no aplica,
     # pero se valida que el campo exista y sea lista)
     response = requests.get(f"{url}/get_docs?limit=10&offset=0")
@@ -27,15 +26,13 @@ def test_get_all_docs_empty(url):
     assert response.status_code == 200
     assert isinstance(body["results"], list)
 
-
-def test_get_all_docs_invalid_params(url):
+def test_03_get_all_docs_invalid_params(url):
     # Caso de parámetros inválidos (limit negativo, offset no numérico)
     response = requests.get(f"{url}/get_docs?limit=-1&offset=abc")
 
     assert response.status_code == 400
 
-
-def test_get_all_docs_unauthorized(url):
+def test_04_get_all_docs_unauthorized(url):
     # Caso de acceso no autorizado
     response = requests.get(f"{url}/get_docs?unauthorized=true")
 
@@ -43,7 +40,7 @@ def test_get_all_docs_unauthorized(url):
 
 # TESTS Get single doc
 
-def test_01_get_single_doc_ok(url):
+def test_05_get_single_doc_ok(url):
     doc_id = "123e4567-e89b-12d3-a456-426614174000"
 
     r = requests.get(f"{url}/get_single_doc/{doc_id}")
@@ -55,24 +52,21 @@ def test_01_get_single_doc_ok(url):
     assert "minio_path" in body
     assert "uploaded_at" in body
 
-
-def test_02_get_single_doc_not_found(url):
+def test_06_get_single_doc_not_found(url):
     invalid_id = "00000000-0000-0000-0000-000000000000"
 
     r = requests.get(f"{url}/get_single_doc/{invalid_id}")
 
     assert r.status_code == 404
 
-
-def test_03_get_single_doc_invalid_id_format(url):
+def test_07_get_single_doc_invalid_id_format(url):
     invalid_id = "prueba-de-api-en-docs"
 
     r = requests.get(f"{url}/get_single_doc/{invalid_id}")
 
     assert r.status_code == 400
 
-
-def test_04_get_single_doc_id_matches_request(url):
+def test_08_get_single_doc_id_matches_request(url):
     doc_id = "123e4567-e89b-12d3-a456-426614174000"
 
     r = requests.get(f"{url}/get_single_doc/{doc_id}")
@@ -81,8 +75,7 @@ def test_04_get_single_doc_id_matches_request(url):
     assert r.status_code == 200
     assert body["id"] == doc_id
 
-
-def test_05_get_single_doc_body_not_empty(url):
+def test_09_get_single_doc_body_not_empty(url):
     doc_id = "123e4567-e89b-12d3-a456-426614174000"
 
     r = requests.get(f"{url}/get_single_doc/{doc_id}")
@@ -92,7 +85,7 @@ def test_05_get_single_doc_body_not_empty(url):
 
 # TESTS Create doc
 
-def test_06_post_create_doc_ok(url):
+def test_10_post_create_doc_ok(url):
     files = {
         "content": ("test.pdf", b"%PDF-1.4 pdf content", "application/pdf")
     }
@@ -107,8 +100,7 @@ def test_06_post_create_doc_ok(url):
     assert body["result"] is True
     assert body["filename"] == "test.pdf"
 
-
-def test_07_post_create_doc_invalid_file_type(url):
+def test_11_post_create_doc_invalid_file_type(url):
     files = {
         "content": ("test.txt", b"not a pdf", "text/plain")
     }
@@ -120,8 +112,7 @@ def test_07_post_create_doc_invalid_file_type(url):
 
     assert r.status_code == 415
 
-
-def test_08_post_create_doc_missing_file(url):
+def test_12_post_create_doc_missing_file(url):
     data = {
         "filename": "test.pdf"
     }
@@ -130,8 +121,7 @@ def test_08_post_create_doc_missing_file(url):
 
     assert r.status_code == 422
 
-
-def test_09_post_create_doc_missing_filename(url):
+def test_13_post_create_doc_missing_filename(url):
     files = {
         "content": ("test.pdf", b"%PDF-1.4 pdf", "application/pdf")
     }
@@ -140,8 +130,7 @@ def test_09_post_create_doc_missing_filename(url):
 
     assert r.status_code == 422
 
-
-def test_10_post_create_doc_filename_consistency(url):
+def test_14_post_create_doc_filename_consistency(url):
     files = {
         "content": ("doc.pdf", b"%PDF-1.4 pdf", "application/pdf")
     }
@@ -153,3 +142,43 @@ def test_10_post_create_doc_filename_consistency(url):
     body = r.json()
 
     assert body["filename"] == "doc.pdf"
+
+# TESTS Delete doc
+
+def test_15_delete_doc_ok(url):
+    doc_id = "123e4567-e89b-12d3-a456-426614174000"
+
+    r = requests.delete(f"{url}/delete_doc/{doc_id}")
+    body = r.json()
+
+    assert r.status_code == 200
+    assert body["result"] is True
+    assert body["id"] == doc_id
+    assert "filename" in body
+    assert "minio_path" in body
+    assert "uploaded_at" in body
+
+def test_16_delete_doc_not_found(url):
+    invalid_id = "00000000-0000-0000-0000-000000000000"
+
+    r = requests.delete(f"{url}/delete_doc/{invalid_id}")
+
+    assert r.status_code == 404
+
+def test_17_delete_doc_invalid_id_format(url):
+    invalid_id = "prueba-api"
+
+    r = requests.delete(f"{url}/delete_doc/{invalid_id}")
+
+    assert r.status_code in (400, 422)
+
+def test_18_delete_doc_repeated(url):
+    doc_id = "123e4567-e89b-12d3-a456-426614174000"
+
+    # Primer delete
+    first = requests.delete(f"{url}/delete_doc/{doc_id}")
+    assert first.status_code == 200
+
+    # Segundo delete del mismo ID
+    second = requests.delete(f"{url}/delete_doc/{doc_id}")
+    assert second.status_code == 404

@@ -1,5 +1,6 @@
 import pytest
 import requests
+from unittest.mock import Mock
 
 from DocsAPI.mock_docs_api import MockDocsAPI
 from ProcessAPI.mock_process_api import MockProcessAPI
@@ -41,7 +42,10 @@ def mock_requests(monkeypatch, use_mock):
             return docs_api.get(url, **kwargs)
         if "/post/" in url:
             return process_api.get(url, **kwargs)
-        return requests.Response()
+        response = Mock()
+        response.status_code = 404
+        response.json.return_value = {"detail": "Endpoint not found"}
+        return response
 
     def mock_post(url, **kwargs):
         if "/create_doc" in url:

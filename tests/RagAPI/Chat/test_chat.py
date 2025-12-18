@@ -1,27 +1,11 @@
 import requests
 import pytest
-from unittest.mock import patch
-from mock_chat_api import MockChatAPI
 
 BASE_CHAT_ENDPOINT = "/chat"
 
-# Fixture de mock para RAG / Chat API
-
-@pytest.fixture(autouse=True)
-def mock_chat_api(use_mock):
-    """
-    Aplica el mock de Chat API para todos los tests de este módulo.
-    """
-    if use_mock:
-        mock_api = MockChatAPI()
-        with patch("requests.post", side_effect=mock_api.post):
-            yield
-    else:
-        yield
-
 # TESTS Chat (POST /chat/:session)
 
-def test_post_message_success(url):
+def test_01_post_message_success(url):
     request_body = {
         "threadId": "t-123",
         "runId": "r-456",
@@ -36,12 +20,50 @@ def test_post_message_success(url):
 
     response = requests.post(
         f"{url}{BASE_CHAT_ENDPOINT}/session",
-        json=request_body,
-        stream=True
+        json=request_body
     )
 
     body = response.json()
 
     assert response.status_code == 200
-    assert "data" in body
-    assert body["data"]["type"] == "RUN_FINISHED"
+    assert "events" in body
+    assert body["events"][-1]["data"]["type"] == "RUN_FINISHED"
+
+def test_02_chat_event_order(url):
+    payload = {
+        "threadId": "t-1",
+        "runId": "r-1",
+        "messages": [{"role": "user", "content": "Hola"}],
+        "tools": [],
+        "context": [],
+        "forwardedProps": {},
+        "state": {}
+    }
+
+    r = requests.post(f"{url}{BASE_CHAT_ENDPOINT}/session", json=payload)
+    events = r.json()["events"]
+
+    types = [e["data"]["type"] for e in events]
+
+    assert types == [
+        "RUN_STARTED",
+        "TEXT_MESSAGE_START",
+        "TEXT_MESSAGE_CONTENT",
+        "TEXT_MESSAGE_END",
+        "RUN_FINISHED"
+    ]
+
+def test_03_chat_missing_field(url):
+    payload = {
+        "threadId": "t-123",
+        "runId": "r-456",
+        # messages falta
+        "tools": [],
+        "context": [],
+        "forwardedProps": {},
+        "state": {}
+    }
+
+    r = requests.post(f"{url}{BASE_CHAT_ENDPOINT}/session", json=payload)
+
+    assert r.status_code == 422

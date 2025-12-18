@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+import uuid
 from datetime import datetime
 
 class MockDocsAPI:
@@ -83,27 +84,43 @@ class MockDocsAPI:
     # DELETE
 
     def delete(self, url, **kwargs):
-        """Simula requests.delete"""
         response = Mock()
 
         # DELETE /delete_doc/{id}
         if "/delete_doc/" in url:
             doc_id = url.split("/delete_doc/")[1]
 
+            # Validar formato UUID
+            try:
+                uuid.UUID(doc_id)
+            except ValueError:
+                response.status_code = 400
+                response.json.return_value = {
+                    "detail": "Invalid ID format"
+                }
+                return response
+
+            # Documento existe
             if doc_id in self.docs:
-                deleted_doc = {**self.docs[doc_id], "result": True}
+                deleted_doc = {
+                    **self.docs[doc_id],
+                    "result": True
+                }
                 del self.docs[doc_id]
+
                 response.status_code = 200
                 response.json.return_value = deleted_doc
-            else:
-                response.status_code = 404
-                response.json.return_value = {
-                    "id": doc_id,
-                    "filename": None,
-                    "minio_path": None,
-                    "uploaded_at": None,
-                    "result": "Error: Document not found"
-                }
+                return response
+
+            # UUID válido pero no existe
+            response.status_code = 404
+            response.json.return_value = {
+                "id": doc_id,
+                "filename": None,
+                "minio_path": None,
+                "uploaded_at": None,
+                "result": "Error: Document not found"
+            }
             return response
 
         # Endpoint inexistente
